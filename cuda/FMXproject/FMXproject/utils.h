@@ -48,4 +48,27 @@ __device__ uint3 uint3_sub(uint3 a, uint3 b)
 	return res;
 }
 
+__device__ int bisect_left(uint3* data, int len, uint3 el) {
+	int start = 0;
+
+	while (len > 0) {
+
+		int m = start + len/2;
+
+		if (uint3_cmp(data[m], el) < 0) {
+			len = len - (m+1 - start);
+			start = m+1;
+			continue;
+		}
+
+		if (start < m && uint3_cmp(data[m-1], el) >= 0) {
+			len = m - start;
+			continue;
+		}
+		
+		return m;
+	}
+	return -1;
+}
+
 #endif
