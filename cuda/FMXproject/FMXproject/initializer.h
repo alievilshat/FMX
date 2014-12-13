@@ -7,7 +7,7 @@
 #include "utils.h"
 #include <stdio.h>
 
-cudaError_t initialize(unsigned int **dev_p, unsigned int **dev_t) {
+cudaError_t initialize(unsigned int** dev_p, uint3*** dev_t, bool** dev_r) {
 	// Set Device
 	info("Device Initialization: ");
 	cudaError_t cudaStatus = cudaSetDevice(0);
@@ -47,6 +47,23 @@ cudaError_t initialize(unsigned int **dev_p, unsigned int **dev_t) {
 
 	info("T compying to device: ");
 	cudaStatus = cudaMemcpy(*dev_t, t, T_SIZE * P_SIZE * sizeof(uint3), cudaMemcpyHostToDevice);
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+		return cudaStatus;
+	}
+	info("OK\n");
+
+	info("R create empty element on the device: ");
+	cudaStatus = cudaMalloc((void**)dev_r, sizeof(bool));
+	if (cudaStatus != cudaSuccess) {
+		fprintf(stderr, "cudaMemcpy failed!");
+		return cudaStatus;
+	}
+	info("OK\n");
+
+	info("R initialize: ");
+	bool b = false;
+	cudaStatus = cudaMemcpy(*dev_r, &b, sizeof(bool), cudaMemcpyHostToDevice);
 	if (cudaStatus != cudaSuccess) {
 		fprintf(stderr, "cudaMemcpy failed!");
 		return cudaStatus;

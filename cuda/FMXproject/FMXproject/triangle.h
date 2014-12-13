@@ -3,6 +3,7 @@
 
 #include "cuda_runtime.h"
 #include "polynom.h"
+#include "utils.h"
 
 const int T_SIZE = 7;
 const int T_V_SIZE = P_SIZE + 1;
@@ -19,4 +20,19 @@ uint3 t[T_SIZE][T_V_SIZE] = {
 
 };
 
+__device__ short* getcandidate(uint3** d_t, uint3 n) {
+	short* res = new short[T_SIZE];
+	n = uint3_add(n, make_uint3(1, 0, 0)); // one based
+
+	short k = 0;
+	for (char i = 0; i < T_SIZE; i++) {
+		uint3* row = d_t[T_SIZE - i - 1];
+		uint3 o = row[k];
+		k = bisect_left(row, T_V_SIZE, uint3_add(n, o)) - 1;
+		res[i] = k;
+		n = uint3_sub(n, row[k]); // n > d_t[r][k]
+		n = uint3_add(n, o);
+	}
+	return res;
+}
 #endif

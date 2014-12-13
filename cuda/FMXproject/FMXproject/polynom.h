@@ -1,6 +1,8 @@
 #ifndef POLYNOM_H
 #define POLYNOM_H
 
+#include "cuda_runtime.h"
+
 const int P_SIZE = 3201;
 const int P_EL_SIZE = 16;
 
