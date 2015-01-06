@@ -1,127 +1,176 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include "initializer.h"
+#include "utils.h"
 
 #include <stdio.h>
 
-#define bit(e, i) ((e >> i) & 1)
-#define bit2(e, i) ((e >> (i-1)) & 2)
+#define GRID_SIZE 10000
+#define BLOCK_SIZE 256
+#define NUMBER_OF_CANDIDATES 1
 
-__global__ void calculate(unsigned int* d_p, uint3** d_t, uint3 start, bool* res) {
-	char j;
-	short* c = getcandidate(d_t, start);
+#define msk(p, p_i, j) (j * (1 - ((p >> p_i) & 2)) * ((p >> p_i) & 1))
 
-	unsigned int p1 = d_p[c[0]];
-	unsigned int p2 = d_p[c[1]];
-	unsigned int p3 = d_p[c[2]];
-	unsigned int p4 = d_p[c[3]];
-	unsigned int p5 = d_p[c[4]];
-	unsigned int p6 = d_p[c[5]];
-	unsigned int p7 = d_p[c[6]];
+__host__ __device__ void calculate(short* c, unsigned int* d_p, bool* res) {
+	short j0, j1, j2, j3, j4, j5, j6;
 
-	*res = false;
-	
-	//validate c1
-	for (j = 0; j < 128; j++)
-	if ((1 /*ae*/ == (1 - bit2(p1, 1)) * bit(p1, 0) * bit(j, 6) + (1 - bit2(p2, 1)) * bit(p2, 0) * bit(j, 5) + (1 - bit2(p3, 1)) * bit(p3, 0) * bit(j, 4) + (1 - bit2(p4, 1)) * bit(p4, 0) * bit(j, 3) + (1 - bit2(p5, 1)) * bit(p5, 0) * bit(j, 2) + (1 - bit2(p6, 1)) * bit(p6, 0) * bit(j, 1) + (1 - bit2(p7, 1)) * bit(p7, 0) * bit(j, 0))
-		&& (0 /*af*/ == (1 - bit2(p1, 3)) * bit(p1, 2) * bit(j, 6) + (1 - bit2(p2, 3)) * bit(p2, 2) * bit(j, 5) + (1 - bit2(p3, 3)) * bit(p3, 2) * bit(j, 4) + (1 - bit2(p4, 3)) * bit(p4, 2) * bit(j, 3) + (1 - bit2(p5, 3)) * bit(p5, 2) * bit(j, 2) + (1 - bit2(p6, 3)) * bit(p6, 2) * bit(j, 1) + (1 - bit2(p7, 3)) * bit(p7, 2) * bit(j, 0))
-		&& (0 /*ag*/ == (1 - bit2(p1, 5)) * bit(p1, 4) * bit(j, 6) + (1 - bit2(p2, 5)) * bit(p2, 4) * bit(j, 5) + (1 - bit2(p3, 5)) * bit(p3, 4) * bit(j, 4) + (1 - bit2(p4, 5)) * bit(p4, 4) * bit(j, 3) + (1 - bit2(p5, 5)) * bit(p5, 4) * bit(j, 2) + (1 - bit2(p6, 5)) * bit(p6, 4) * bit(j, 1) + (1 - bit2(p7, 5)) * bit(p7, 4) * bit(j, 0))
-		&& (0 /*ah*/ == (1 - bit2(p1, 7)) * bit(p1, 6) * bit(j, 6) + (1 - bit2(p2, 7)) * bit(p2, 6) * bit(j, 5) + (1 - bit2(p3, 7)) * bit(p3, 6) * bit(j, 4) + (1 - bit2(p4, 7)) * bit(p4, 6) * bit(j, 3) + (1 - bit2(p5, 7)) * bit(p5, 6) * bit(j, 2) + (1 - bit2(p6, 7)) * bit(p6, 6) * bit(j, 1) + (1 - bit2(p7, 7)) * bit(p7, 6) * bit(j, 0))
-		&& (0 /*be*/ == (1 - bit2(p1, 9)) * bit(p1, 8) * bit(j, 6) + (1 - bit2(p2, 9)) * bit(p2, 8) * bit(j, 5) + (1 - bit2(p3, 9)) * bit(p3, 8) * bit(j, 4) + (1 - bit2(p4, 9)) * bit(p4, 8) * bit(j, 3) + (1 - bit2(p5, 9)) * bit(p5, 8) * bit(j, 2) + (1 - bit2(p6, 9)) * bit(p6, 8) * bit(j, 1) + (1 - bit2(p7, 9)) * bit(p7, 8) * bit(j, 0))
-		&& (0 /*bf*/ == (1 - bit2(p1, 11)) * bit(p1, 10) * bit(j, 6) + (1 - bit2(p2, 11)) * bit(p2, 10) * bit(j, 5) + (1 - bit2(p3, 11)) * bit(p3, 10) * bit(j, 4) + (1 - bit2(p4, 11)) * bit(p4, 10) * bit(j, 3) + (1 - bit2(p5, 11)) * bit(p5, 10) * bit(j, 2) + (1 - bit2(p6, 11)) * bit(p6, 10) * bit(j, 1) + (1 - bit2(p7, 11)) * bit(p7, 10) * bit(j, 0))
-		&& (1 /*bg*/ == (1 - bit2(p1, 13)) * bit(p1, 12) * bit(j, 6) + (1 - bit2(p2, 13)) * bit(p2, 12) * bit(j, 5) + (1 - bit2(p3, 13)) * bit(p3, 12) * bit(j, 4) + (1 - bit2(p4, 13)) * bit(p4, 12) * bit(j, 3) + (1 - bit2(p5, 13)) * bit(p5, 12) * bit(j, 2) + (1 - bit2(p6, 13)) * bit(p6, 12) * bit(j, 1) + (1 - bit2(p7, 13)) * bit(p7, 12) * bit(j, 0))
-		&& (0 /*bh*/ == (1 - bit2(p1, 15)) * bit(p1, 14) * bit(j, 6) + (1 - bit2(p2, 15)) * bit(p2, 14) * bit(j, 5) + (1 - bit2(p3, 15)) * bit(p3, 14) * bit(j, 4) + (1 - bit2(p4, 15)) * bit(p4, 14) * bit(j, 3) + (1 - bit2(p5, 15)) * bit(p5, 14) * bit(j, 2) + (1 - bit2(p6, 15)) * bit(p6, 14) * bit(j, 1) + (1 - bit2(p7, 15)) * bit(p7, 14) * bit(j, 0))
-		&& (0 /*ce*/ == (1 - bit2(p1, 17)) * bit(p1, 16) * bit(j, 6) + (1 - bit2(p2, 17)) * bit(p2, 16) * bit(j, 5) + (1 - bit2(p3, 17)) * bit(p3, 16) * bit(j, 4) + (1 - bit2(p4, 17)) * bit(p4, 16) * bit(j, 3) + (1 - bit2(p5, 17)) * bit(p5, 16) * bit(j, 2) + (1 - bit2(p6, 17)) * bit(p6, 16) * bit(j, 1) + (1 - bit2(p7, 17)) * bit(p7, 16) * bit(j, 0))
-		&& (0 /*cf*/ == (1 - bit2(p1, 19)) * bit(p1, 18) * bit(j, 6) + (1 - bit2(p2, 19)) * bit(p2, 18) * bit(j, 5) + (1 - bit2(p3, 19)) * bit(p3, 18) * bit(j, 4) + (1 - bit2(p4, 19)) * bit(p4, 18) * bit(j, 3) + (1 - bit2(p5, 19)) * bit(p5, 18) * bit(j, 2) + (1 - bit2(p6, 19)) * bit(p6, 18) * bit(j, 1) + (1 - bit2(p7, 19)) * bit(p7, 18) * bit(j, 0))
-		&& (0 /*cg*/ == (1 - bit2(p1, 21)) * bit(p1, 20) * bit(j, 6) + (1 - bit2(p2, 21)) * bit(p2, 20) * bit(j, 5) + (1 - bit2(p3, 21)) * bit(p3, 20) * bit(j, 4) + (1 - bit2(p4, 21)) * bit(p4, 20) * bit(j, 3) + (1 - bit2(p5, 21)) * bit(p5, 20) * bit(j, 2) + (1 - bit2(p6, 21)) * bit(p6, 20) * bit(j, 1) + (1 - bit2(p7, 21)) * bit(p7, 20) * bit(j, 0))
-		&& (0 /*ch*/ == (1 - bit2(p1, 23)) * bit(p1, 22) * bit(j, 6) + (1 - bit2(p2, 23)) * bit(p2, 22) * bit(j, 5) + (1 - bit2(p3, 23)) * bit(p3, 22) * bit(j, 4) + (1 - bit2(p4, 23)) * bit(p4, 22) * bit(j, 3) + (1 - bit2(p5, 23)) * bit(p5, 22) * bit(j, 2) + (1 - bit2(p6, 23)) * bit(p6, 22) * bit(j, 1) + (1 - bit2(p7, 23)) * bit(p7, 22) * bit(j, 0))
-		&& (0 /*de*/ == (1 - bit2(p1, 25)) * bit(p1, 24) * bit(j, 6) + (1 - bit2(p2, 25)) * bit(p2, 24) * bit(j, 5) + (1 - bit2(p3, 25)) * bit(p3, 24) * bit(j, 4) + (1 - bit2(p4, 25)) * bit(p4, 24) * bit(j, 3) + (1 - bit2(p5, 25)) * bit(p5, 24) * bit(j, 2) + (1 - bit2(p6, 25)) * bit(p6, 24) * bit(j, 1) + (1 - bit2(p7, 25)) * bit(p7, 24) * bit(j, 0))
-		&& (0 /*df*/ == (1 - bit2(p1, 27)) * bit(p1, 26) * bit(j, 6) + (1 - bit2(p2, 27)) * bit(p2, 26) * bit(j, 5) + (1 - bit2(p3, 27)) * bit(p3, 26) * bit(j, 4) + (1 - bit2(p4, 27)) * bit(p4, 26) * bit(j, 3) + (1 - bit2(p5, 27)) * bit(p5, 26) * bit(j, 2) + (1 - bit2(p6, 27)) * bit(p6, 26) * bit(j, 1) + (1 - bit2(p7, 27)) * bit(p7, 26) * bit(j, 0))
-		&& (0 /*dg*/ == (1 - bit2(p1, 29)) * bit(p1, 28) * bit(j, 6) + (1 - bit2(p2, 29)) * bit(p2, 28) * bit(j, 5) + (1 - bit2(p3, 29)) * bit(p3, 28) * bit(j, 4) + (1 - bit2(p4, 29)) * bit(p4, 28) * bit(j, 3) + (1 - bit2(p5, 29)) * bit(p5, 28) * bit(j, 2) + (1 - bit2(p6, 29)) * bit(p6, 28) * bit(j, 1) + (1 - bit2(p7, 29)) * bit(p7, 28) * bit(j, 0))
-		&& (0 /*dh*/ == (1 - bit2(p1, 31)) * bit(p1, 30) * bit(j, 6) + (1 - bit2(p2, 31)) * bit(p2, 30) * bit(j, 5) + (1 - bit2(p3, 31)) * bit(p3, 30) * bit(j, 4) + (1 - bit2(p4, 31)) * bit(p4, 30) * bit(j, 3) + (1 - bit2(p5, 31)) * bit(p5, 30) * bit(j, 2) + (1 - bit2(p6, 31)) * bit(p6, 30) * bit(j, 1) + (1 - bit2(p7, 31)) * bit(p7, 30) * bit(j, 0)))
+	//for (int i = 0; i++ < NUMBER_OF_CANDIDATES; nextcandidate(c)) 
 	{
-		goto c2;
-	}
-	return;
 
-c2: // validate c2
-	for (j = 0; j < 128; j++)
-	if ((0 /*ae*/ == (1 - bit2(p1, 1)) * bit(p1, 0) * bit(j, 6) + (1 - bit2(p2, 1)) * bit(p2, 0) * bit(j, 5) + (1 - bit2(p3, 1)) * bit(p3, 0) * bit(j, 4) + (1 - bit2(p4, 1)) * bit(p4, 0) * bit(j, 3) + (1 - bit2(p5, 1)) * bit(p5, 0) * bit(j, 2) + (1 - bit2(p6, 1)) * bit(p6, 0) * bit(j, 1) + (1 - bit2(p7, 1)) * bit(p7, 0) * bit(j, 0))
-		&& (1 /*af*/ == (1 - bit2(p1, 3)) * bit(p1, 2) * bit(j, 6) + (1 - bit2(p2, 3)) * bit(p2, 2) * bit(j, 5) + (1 - bit2(p3, 3)) * bit(p3, 2) * bit(j, 4) + (1 - bit2(p4, 3)) * bit(p4, 2) * bit(j, 3) + (1 - bit2(p5, 3)) * bit(p5, 2) * bit(j, 2) + (1 - bit2(p6, 3)) * bit(p6, 2) * bit(j, 1) + (1 - bit2(p7, 3)) * bit(p7, 2) * bit(j, 0))
-		&& (0 /*ag*/ == (1 - bit2(p1, 5)) * bit(p1, 4) * bit(j, 6) + (1 - bit2(p2, 5)) * bit(p2, 4) * bit(j, 5) + (1 - bit2(p3, 5)) * bit(p3, 4) * bit(j, 4) + (1 - bit2(p4, 5)) * bit(p4, 4) * bit(j, 3) + (1 - bit2(p5, 5)) * bit(p5, 4) * bit(j, 2) + (1 - bit2(p6, 5)) * bit(p6, 4) * bit(j, 1) + (1 - bit2(p7, 5)) * bit(p7, 4) * bit(j, 0))
-		&& (0 /*ah*/ == (1 - bit2(p1, 7)) * bit(p1, 6) * bit(j, 6) + (1 - bit2(p2, 7)) * bit(p2, 6) * bit(j, 5) + (1 - bit2(p3, 7)) * bit(p3, 6) * bit(j, 4) + (1 - bit2(p4, 7)) * bit(p4, 6) * bit(j, 3) + (1 - bit2(p5, 7)) * bit(p5, 6) * bit(j, 2) + (1 - bit2(p6, 7)) * bit(p6, 6) * bit(j, 1) + (1 - bit2(p7, 7)) * bit(p7, 6) * bit(j, 0))
-		&& (0 /*be*/ == (1 - bit2(p1, 9)) * bit(p1, 8) * bit(j, 6) + (1 - bit2(p2, 9)) * bit(p2, 8) * bit(j, 5) + (1 - bit2(p3, 9)) * bit(p3, 8) * bit(j, 4) + (1 - bit2(p4, 9)) * bit(p4, 8) * bit(j, 3) + (1 - bit2(p5, 9)) * bit(p5, 8) * bit(j, 2) + (1 - bit2(p6, 9)) * bit(p6, 8) * bit(j, 1) + (1 - bit2(p7, 9)) * bit(p7, 8) * bit(j, 0))
-		&& (0 /*bf*/ == (1 - bit2(p1, 11)) * bit(p1, 10) * bit(j, 6) + (1 - bit2(p2, 11)) * bit(p2, 10) * bit(j, 5) + (1 - bit2(p3, 11)) * bit(p3, 10) * bit(j, 4) + (1 - bit2(p4, 11)) * bit(p4, 10) * bit(j, 3) + (1 - bit2(p5, 11)) * bit(p5, 10) * bit(j, 2) + (1 - bit2(p6, 11)) * bit(p6, 10) * bit(j, 1) + (1 - bit2(p7, 11)) * bit(p7, 10) * bit(j, 0))
-		&& (0 /*bg*/ == (1 - bit2(p1, 13)) * bit(p1, 12) * bit(j, 6) + (1 - bit2(p2, 13)) * bit(p2, 12) * bit(j, 5) + (1 - bit2(p3, 13)) * bit(p3, 12) * bit(j, 4) + (1 - bit2(p4, 13)) * bit(p4, 12) * bit(j, 3) + (1 - bit2(p5, 13)) * bit(p5, 12) * bit(j, 2) + (1 - bit2(p6, 13)) * bit(p6, 12) * bit(j, 1) + (1 - bit2(p7, 13)) * bit(p7, 12) * bit(j, 0))
-		&& (1 /*bh*/ == (1 - bit2(p1, 15)) * bit(p1, 14) * bit(j, 6) + (1 - bit2(p2, 15)) * bit(p2, 14) * bit(j, 5) + (1 - bit2(p3, 15)) * bit(p3, 14) * bit(j, 4) + (1 - bit2(p4, 15)) * bit(p4, 14) * bit(j, 3) + (1 - bit2(p5, 15)) * bit(p5, 14) * bit(j, 2) + (1 - bit2(p6, 15)) * bit(p6, 14) * bit(j, 1) + (1 - bit2(p7, 15)) * bit(p7, 14) * bit(j, 0))
-		&& (0 /*ce*/ == (1 - bit2(p1, 17)) * bit(p1, 16) * bit(j, 6) + (1 - bit2(p2, 17)) * bit(p2, 16) * bit(j, 5) + (1 - bit2(p3, 17)) * bit(p3, 16) * bit(j, 4) + (1 - bit2(p4, 17)) * bit(p4, 16) * bit(j, 3) + (1 - bit2(p5, 17)) * bit(p5, 16) * bit(j, 2) + (1 - bit2(p6, 17)) * bit(p6, 16) * bit(j, 1) + (1 - bit2(p7, 17)) * bit(p7, 16) * bit(j, 0))
-		&& (0 /*cf*/ == (1 - bit2(p1, 19)) * bit(p1, 18) * bit(j, 6) + (1 - bit2(p2, 19)) * bit(p2, 18) * bit(j, 5) + (1 - bit2(p3, 19)) * bit(p3, 18) * bit(j, 4) + (1 - bit2(p4, 19)) * bit(p4, 18) * bit(j, 3) + (1 - bit2(p5, 19)) * bit(p5, 18) * bit(j, 2) + (1 - bit2(p6, 19)) * bit(p6, 18) * bit(j, 1) + (1 - bit2(p7, 19)) * bit(p7, 18) * bit(j, 0))
-		&& (0 /*cg*/ == (1 - bit2(p1, 21)) * bit(p1, 20) * bit(j, 6) + (1 - bit2(p2, 21)) * bit(p2, 20) * bit(j, 5) + (1 - bit2(p3, 21)) * bit(p3, 20) * bit(j, 4) + (1 - bit2(p4, 21)) * bit(p4, 20) * bit(j, 3) + (1 - bit2(p5, 21)) * bit(p5, 20) * bit(j, 2) + (1 - bit2(p6, 21)) * bit(p6, 20) * bit(j, 1) + (1 - bit2(p7, 21)) * bit(p7, 20) * bit(j, 0))
-		&& (0 /*ch*/ == (1 - bit2(p1, 23)) * bit(p1, 22) * bit(j, 6) + (1 - bit2(p2, 23)) * bit(p2, 22) * bit(j, 5) + (1 - bit2(p3, 23)) * bit(p3, 22) * bit(j, 4) + (1 - bit2(p4, 23)) * bit(p4, 22) * bit(j, 3) + (1 - bit2(p5, 23)) * bit(p5, 22) * bit(j, 2) + (1 - bit2(p6, 23)) * bit(p6, 22) * bit(j, 1) + (1 - bit2(p7, 23)) * bit(p7, 22) * bit(j, 0))
-		&& (0 /*de*/ == (1 - bit2(p1, 25)) * bit(p1, 24) * bit(j, 6) + (1 - bit2(p2, 25)) * bit(p2, 24) * bit(j, 5) + (1 - bit2(p3, 25)) * bit(p3, 24) * bit(j, 4) + (1 - bit2(p4, 25)) * bit(p4, 24) * bit(j, 3) + (1 - bit2(p5, 25)) * bit(p5, 24) * bit(j, 2) + (1 - bit2(p6, 25)) * bit(p6, 24) * bit(j, 1) + (1 - bit2(p7, 25)) * bit(p7, 24) * bit(j, 0))
-		&& (0 /*df*/ == (1 - bit2(p1, 27)) * bit(p1, 26) * bit(j, 6) + (1 - bit2(p2, 27)) * bit(p2, 26) * bit(j, 5) + (1 - bit2(p3, 27)) * bit(p3, 26) * bit(j, 4) + (1 - bit2(p4, 27)) * bit(p4, 26) * bit(j, 3) + (1 - bit2(p5, 27)) * bit(p5, 26) * bit(j, 2) + (1 - bit2(p6, 27)) * bit(p6, 26) * bit(j, 1) + (1 - bit2(p7, 27)) * bit(p7, 26) * bit(j, 0))
-		&& (0 /*dg*/ == (1 - bit2(p1, 29)) * bit(p1, 28) * bit(j, 6) + (1 - bit2(p2, 29)) * bit(p2, 28) * bit(j, 5) + (1 - bit2(p3, 29)) * bit(p3, 28) * bit(j, 4) + (1 - bit2(p4, 29)) * bit(p4, 28) * bit(j, 3) + (1 - bit2(p5, 29)) * bit(p5, 28) * bit(j, 2) + (1 - bit2(p6, 29)) * bit(p6, 28) * bit(j, 1) + (1 - bit2(p7, 29)) * bit(p7, 28) * bit(j, 0))
-		&& (0 /*dh*/ == (1 - bit2(p1, 31)) * bit(p1, 30) * bit(j, 6) + (1 - bit2(p2, 31)) * bit(p2, 30) * bit(j, 5) + (1 - bit2(p3, 31)) * bit(p3, 30) * bit(j, 4) + (1 - bit2(p4, 31)) * bit(p4, 30) * bit(j, 3) + (1 - bit2(p5, 31)) * bit(p5, 30) * bit(j, 2) + (1 - bit2(p6, 31)) * bit(p6, 30) * bit(j, 1) + (1 - bit2(p7, 31)) * bit(p7, 30) * bit(j, 0)))
-	{
-		goto c3;
-	}
-	return;
+		unsigned int p1 = d_p[c[0]];
+		unsigned int p2 = d_p[c[1]];
+		unsigned int p3 = d_p[c[2]];
+		unsigned int p4 = d_p[c[3]];
+		unsigned int p5 = d_p[c[4]];
+		unsigned int p6 = d_p[c[5]];
+		unsigned int p7 = d_p[c[6]];
 
-c3: // validate c3
-	for (j = 0; j < 128; j++)
-	if ((0 /*ae*/ == (1 - bit2(p1, 1)) * bit(p1, 0) * bit(j, 6) + (1 - bit2(p2, 1)) * bit(p2, 0) * bit(j, 5) + (1 - bit2(p3, 1)) * bit(p3, 0) * bit(j, 4) + (1 - bit2(p4, 1)) * bit(p4, 0) * bit(j, 3) + (1 - bit2(p5, 1)) * bit(p5, 0) * bit(j, 2) + (1 - bit2(p6, 1)) * bit(p6, 0) * bit(j, 1) + (1 - bit2(p7, 1)) * bit(p7, 0) * bit(j, 0))
-		&& (0 /*af*/ == (1 - bit2(p1, 3)) * bit(p1, 2) * bit(j, 6) + (1 - bit2(p2, 3)) * bit(p2, 2) * bit(j, 5) + (1 - bit2(p3, 3)) * bit(p3, 2) * bit(j, 4) + (1 - bit2(p4, 3)) * bit(p4, 2) * bit(j, 3) + (1 - bit2(p5, 3)) * bit(p5, 2) * bit(j, 2) + (1 - bit2(p6, 3)) * bit(p6, 2) * bit(j, 1) + (1 - bit2(p7, 3)) * bit(p7, 2) * bit(j, 0))
-		&& (0 /*ag*/ == (1 - bit2(p1, 5)) * bit(p1, 4) * bit(j, 6) + (1 - bit2(p2, 5)) * bit(p2, 4) * bit(j, 5) + (1 - bit2(p3, 5)) * bit(p3, 4) * bit(j, 4) + (1 - bit2(p4, 5)) * bit(p4, 4) * bit(j, 3) + (1 - bit2(p5, 5)) * bit(p5, 4) * bit(j, 2) + (1 - bit2(p6, 5)) * bit(p6, 4) * bit(j, 1) + (1 - bit2(p7, 5)) * bit(p7, 4) * bit(j, 0))
-		&& (0 /*ah*/ == (1 - bit2(p1, 7)) * bit(p1, 6) * bit(j, 6) + (1 - bit2(p2, 7)) * bit(p2, 6) * bit(j, 5) + (1 - bit2(p3, 7)) * bit(p3, 6) * bit(j, 4) + (1 - bit2(p4, 7)) * bit(p4, 6) * bit(j, 3) + (1 - bit2(p5, 7)) * bit(p5, 6) * bit(j, 2) + (1 - bit2(p6, 7)) * bit(p6, 6) * bit(j, 1) + (1 - bit2(p7, 7)) * bit(p7, 6) * bit(j, 0))
-		&& (0 /*be*/ == (1 - bit2(p1, 9)) * bit(p1, 8) * bit(j, 6) + (1 - bit2(p2, 9)) * bit(p2, 8) * bit(j, 5) + (1 - bit2(p3, 9)) * bit(p3, 8) * bit(j, 4) + (1 - bit2(p4, 9)) * bit(p4, 8) * bit(j, 3) + (1 - bit2(p5, 9)) * bit(p5, 8) * bit(j, 2) + (1 - bit2(p6, 9)) * bit(p6, 8) * bit(j, 1) + (1 - bit2(p7, 9)) * bit(p7, 8) * bit(j, 0))
-		&& (0 /*bf*/ == (1 - bit2(p1, 11)) * bit(p1, 10) * bit(j, 6) + (1 - bit2(p2, 11)) * bit(p2, 10) * bit(j, 5) + (1 - bit2(p3, 11)) * bit(p3, 10) * bit(j, 4) + (1 - bit2(p4, 11)) * bit(p4, 10) * bit(j, 3) + (1 - bit2(p5, 11)) * bit(p5, 10) * bit(j, 2) + (1 - bit2(p6, 11)) * bit(p6, 10) * bit(j, 1) + (1 - bit2(p7, 11)) * bit(p7, 10) * bit(j, 0))
-		&& (0 /*bg*/ == (1 - bit2(p1, 13)) * bit(p1, 12) * bit(j, 6) + (1 - bit2(p2, 13)) * bit(p2, 12) * bit(j, 5) + (1 - bit2(p3, 13)) * bit(p3, 12) * bit(j, 4) + (1 - bit2(p4, 13)) * bit(p4, 12) * bit(j, 3) + (1 - bit2(p5, 13)) * bit(p5, 12) * bit(j, 2) + (1 - bit2(p6, 13)) * bit(p6, 12) * bit(j, 1) + (1 - bit2(p7, 13)) * bit(p7, 12) * bit(j, 0))
-		&& (0 /*bh*/ == (1 - bit2(p1, 15)) * bit(p1, 14) * bit(j, 6) + (1 - bit2(p2, 15)) * bit(p2, 14) * bit(j, 5) + (1 - bit2(p3, 15)) * bit(p3, 14) * bit(j, 4) + (1 - bit2(p4, 15)) * bit(p4, 14) * bit(j, 3) + (1 - bit2(p5, 15)) * bit(p5, 14) * bit(j, 2) + (1 - bit2(p6, 15)) * bit(p6, 14) * bit(j, 1) + (1 - bit2(p7, 15)) * bit(p7, 14) * bit(j, 0))
-		&& (1 /*ce*/ == (1 - bit2(p1, 17)) * bit(p1, 16) * bit(j, 6) + (1 - bit2(p2, 17)) * bit(p2, 16) * bit(j, 5) + (1 - bit2(p3, 17)) * bit(p3, 16) * bit(j, 4) + (1 - bit2(p4, 17)) * bit(p4, 16) * bit(j, 3) + (1 - bit2(p5, 17)) * bit(p5, 16) * bit(j, 2) + (1 - bit2(p6, 17)) * bit(p6, 16) * bit(j, 1) + (1 - bit2(p7, 17)) * bit(p7, 16) * bit(j, 0))
-		&& (0 /*cf*/ == (1 - bit2(p1, 19)) * bit(p1, 18) * bit(j, 6) + (1 - bit2(p2, 19)) * bit(p2, 18) * bit(j, 5) + (1 - bit2(p3, 19)) * bit(p3, 18) * bit(j, 4) + (1 - bit2(p4, 19)) * bit(p4, 18) * bit(j, 3) + (1 - bit2(p5, 19)) * bit(p5, 18) * bit(j, 2) + (1 - bit2(p6, 19)) * bit(p6, 18) * bit(j, 1) + (1 - bit2(p7, 19)) * bit(p7, 18) * bit(j, 0))
-		&& (0 /*cg*/ == (1 - bit2(p1, 21)) * bit(p1, 20) * bit(j, 6) + (1 - bit2(p2, 21)) * bit(p2, 20) * bit(j, 5) + (1 - bit2(p3, 21)) * bit(p3, 20) * bit(j, 4) + (1 - bit2(p4, 21)) * bit(p4, 20) * bit(j, 3) + (1 - bit2(p5, 21)) * bit(p5, 20) * bit(j, 2) + (1 - bit2(p6, 21)) * bit(p6, 20) * bit(j, 1) + (1 - bit2(p7, 21)) * bit(p7, 20) * bit(j, 0))
-		&& (0 /*ch*/ == (1 - bit2(p1, 23)) * bit(p1, 22) * bit(j, 6) + (1 - bit2(p2, 23)) * bit(p2, 22) * bit(j, 5) + (1 - bit2(p3, 23)) * bit(p3, 22) * bit(j, 4) + (1 - bit2(p4, 23)) * bit(p4, 22) * bit(j, 3) + (1 - bit2(p5, 23)) * bit(p5, 22) * bit(j, 2) + (1 - bit2(p6, 23)) * bit(p6, 22) * bit(j, 1) + (1 - bit2(p7, 23)) * bit(p7, 22) * bit(j, 0))
-		&& (0 /*de*/ == (1 - bit2(p1, 25)) * bit(p1, 24) * bit(j, 6) + (1 - bit2(p2, 25)) * bit(p2, 24) * bit(j, 5) + (1 - bit2(p3, 25)) * bit(p3, 24) * bit(j, 4) + (1 - bit2(p4, 25)) * bit(p4, 24) * bit(j, 3) + (1 - bit2(p5, 25)) * bit(p5, 24) * bit(j, 2) + (1 - bit2(p6, 25)) * bit(p6, 24) * bit(j, 1) + (1 - bit2(p7, 25)) * bit(p7, 24) * bit(j, 0))
-		&& (0 /*df*/ == (1 - bit2(p1, 27)) * bit(p1, 26) * bit(j, 6) + (1 - bit2(p2, 27)) * bit(p2, 26) * bit(j, 5) + (1 - bit2(p3, 27)) * bit(p3, 26) * bit(j, 4) + (1 - bit2(p4, 27)) * bit(p4, 26) * bit(j, 3) + (1 - bit2(p5, 27)) * bit(p5, 26) * bit(j, 2) + (1 - bit2(p6, 27)) * bit(p6, 26) * bit(j, 1) + (1 - bit2(p7, 27)) * bit(p7, 26) * bit(j, 0))
-		&& (1 /*dg*/ == (1 - bit2(p1, 29)) * bit(p1, 28) * bit(j, 6) + (1 - bit2(p2, 29)) * bit(p2, 28) * bit(j, 5) + (1 - bit2(p3, 29)) * bit(p3, 28) * bit(j, 4) + (1 - bit2(p4, 29)) * bit(p4, 28) * bit(j, 3) + (1 - bit2(p5, 29)) * bit(p5, 28) * bit(j, 2) + (1 - bit2(p6, 29)) * bit(p6, 28) * bit(j, 1) + (1 - bit2(p7, 29)) * bit(p7, 28) * bit(j, 0))
-		&& (0 /*dh*/ == (1 - bit2(p1, 31)) * bit(p1, 30) * bit(j, 6) + (1 - bit2(p2, 31)) * bit(p2, 30) * bit(j, 5) + (1 - bit2(p3, 31)) * bit(p3, 30) * bit(j, 4) + (1 - bit2(p4, 31)) * bit(p4, 30) * bit(j, 3) + (1 - bit2(p5, 31)) * bit(p5, 30) * bit(j, 2) + (1 - bit2(p6, 31)) * bit(p6, 30) * bit(j, 1) + (1 - bit2(p7, 31)) * bit(p7, 30) * bit(j, 0)))
-	{
-		goto c4;
-	}
-	return;
+		//validate c1
+		for (j6 = -1; j6 <= 1; j6++)
+		for (j5 = -1; j5 <= 1; j5++)
+		for (j4 = -1; j4 <= 1; j4++)
+		for (j3 = -1; j3 <= 1; j3++)
+		for (j2 = -1; j2 <= 1; j2++)
+		for (j1 = -1; j1 <= 1; j1++)
+		for (j0 = -1; j0 <= 1; j0++) {
+			if ((1 /*ae*/ == msk(p1, 0, j6) + msk(p2, 0, j5) + msk(p3, 0, j4) + msk(p4, 0, j3) + msk(p5, 0, j2) + msk(p6, 0, j1) + msk(p7, 0, j0))
+				&& (0 /*af*/ == msk(p1, 2, j6) + msk(p2, 2, j5) + msk(p3, 2, j4) + msk(p4, 2, j3) + msk(p5, 2, j2) + msk(p6, 2, j1) + msk(p7, 2, j0))
+				&& (0 /*ag*/ == msk(p1, 4, j6) + msk(p2, 4, j5) + msk(p3, 4, j4) + msk(p4, 4, j3) + msk(p5, 4, j2) + msk(p6, 4, j1) + msk(p7, 4, j0))
+				&& (0 /*ah*/ == msk(p1, 6, j6) + msk(p2, 6, j5) + msk(p3, 6, j4) + msk(p4, 6, j3) + msk(p5, 6, j2) + msk(p6, 6, j1) + msk(p7, 6, j0))
+				&& (0 /*be*/ == msk(p1, 8, j6) + msk(p2, 8, j5) + msk(p3, 8, j4) + msk(p4, 8, j3) + msk(p5, 8, j2) + msk(p6, 8, j1) + msk(p7, 8, j0))
+				&& (0 /*bf*/ == msk(p1, 10, j6) + msk(p2, 10, j5) + msk(p3, 10, j4) + msk(p4, 10, j3) + msk(p5, 10, j2) + msk(p6, 10, j1) + msk(p7, 10, j0))
+				&& (1 /*bg*/ == msk(p1, 12, j6) + msk(p2, 12, j5) + msk(p3, 12, j4) + msk(p4, 12, j3) + msk(p5, 12, j2) + msk(p6, 12, j1) + msk(p7, 12, j0))
+				&& (0 /*bh*/ == msk(p1, 14, j6) + msk(p2, 14, j5) + msk(p3, 14, j4) + msk(p4, 14, j3) + msk(p5, 14, j2) + msk(p6, 14, j1) + msk(p7, 14, j0))
+				&& (0 /*ce*/ == msk(p1, 16, j6) + msk(p2, 16, j5) + msk(p3, 16, j4) + msk(p4, 16, j3) + msk(p5, 16, j2) + msk(p6, 16, j1) + msk(p7, 16, j0))
+				&& (0 /*cf*/ == msk(p1, 18, j6) + msk(p2, 18, j5) + msk(p3, 18, j4) + msk(p4, 18, j3) + msk(p5, 18, j2) + msk(p6, 18, j1) + msk(p7, 18, j0))
+				&& (0 /*cg*/ == msk(p1, 20, j6) + msk(p2, 20, j5) + msk(p3, 20, j4) + msk(p4, 20, j3) + msk(p5, 20, j2) + msk(p6, 20, j1) + msk(p7, 20, j0))
+				&& (0 /*ch*/ == msk(p1, 22, j6) + msk(p2, 22, j5) + msk(p3, 22, j4) + msk(p4, 22, j3) + msk(p5, 22, j2) + msk(p6, 22, j1) + msk(p7, 22, j0))
+				&& (0 /*de*/ == msk(p1, 24, j6) + msk(p2, 24, j5) + msk(p3, 24, j4) + msk(p4, 24, j3) + msk(p5, 24, j2) + msk(p6, 24, j1) + msk(p7, 24, j0))
+				&& (0 /*df*/ == msk(p1, 26, j6) + msk(p2, 26, j5) + msk(p3, 26, j4) + msk(p4, 26, j3) + msk(p5, 26, j2) + msk(p6, 26, j1) + msk(p7, 26, j0))
+				&& (0 /*dg*/ == msk(p1, 28, j6) + msk(p2, 28, j5) + msk(p3, 28, j4) + msk(p4, 28, j3) + msk(p5, 28, j2) + msk(p6, 28, j1) + msk(p7, 28, j0))
+				&& (0 /*dh*/ == msk(p1, 30, j6) + msk(p2, 30, j5) + msk(p3, 30, j4) + msk(p4, 30, j3) + msk(p5, 30, j2) + msk(p6, 30, j1) + msk(p7, 30, j0)))
+			{
+				goto c2;
+			}
+		}
+		return;// continue;
 
-c4: // validate c4
-	for (j = 0; j < 128; j++)
-	if ((0 /*ae*/ == (1 - bit2(p1, 1)) * bit(p1, 0) * bit(j, 6) + (1 - bit2(p2, 1)) * bit(p2, 0) * bit(j, 5) + (1 - bit2(p3, 1)) * bit(p3, 0) * bit(j, 4) + (1 - bit2(p4, 1)) * bit(p4, 0) * bit(j, 3) + (1 - bit2(p5, 1)) * bit(p5, 0) * bit(j, 2) + (1 - bit2(p6, 1)) * bit(p6, 0) * bit(j, 1) + (1 - bit2(p7, 1)) * bit(p7, 0) * bit(j, 0))
-		&& (0 /*af*/ == (1 - bit2(p1, 3)) * bit(p1, 2) * bit(j, 6) + (1 - bit2(p2, 3)) * bit(p2, 2) * bit(j, 5) + (1 - bit2(p3, 3)) * bit(p3, 2) * bit(j, 4) + (1 - bit2(p4, 3)) * bit(p4, 2) * bit(j, 3) + (1 - bit2(p5, 3)) * bit(p5, 2) * bit(j, 2) + (1 - bit2(p6, 3)) * bit(p6, 2) * bit(j, 1) + (1 - bit2(p7, 3)) * bit(p7, 2) * bit(j, 0))
-		&& (0 /*ag*/ == (1 - bit2(p1, 5)) * bit(p1, 4) * bit(j, 6) + (1 - bit2(p2, 5)) * bit(p2, 4) * bit(j, 5) + (1 - bit2(p3, 5)) * bit(p3, 4) * bit(j, 4) + (1 - bit2(p4, 5)) * bit(p4, 4) * bit(j, 3) + (1 - bit2(p5, 5)) * bit(p5, 4) * bit(j, 2) + (1 - bit2(p6, 5)) * bit(p6, 4) * bit(j, 1) + (1 - bit2(p7, 5)) * bit(p7, 4) * bit(j, 0))
-		&& (0 /*ah*/ == (1 - bit2(p1, 7)) * bit(p1, 6) * bit(j, 6) + (1 - bit2(p2, 7)) * bit(p2, 6) * bit(j, 5) + (1 - bit2(p3, 7)) * bit(p3, 6) * bit(j, 4) + (1 - bit2(p4, 7)) * bit(p4, 6) * bit(j, 3) + (1 - bit2(p5, 7)) * bit(p5, 6) * bit(j, 2) + (1 - bit2(p6, 7)) * bit(p6, 6) * bit(j, 1) + (1 - bit2(p7, 7)) * bit(p7, 6) * bit(j, 0))
-		&& (0 /*be*/ == (1 - bit2(p1, 9)) * bit(p1, 8) * bit(j, 6) + (1 - bit2(p2, 9)) * bit(p2, 8) * bit(j, 5) + (1 - bit2(p3, 9)) * bit(p3, 8) * bit(j, 4) + (1 - bit2(p4, 9)) * bit(p4, 8) * bit(j, 3) + (1 - bit2(p5, 9)) * bit(p5, 8) * bit(j, 2) + (1 - bit2(p6, 9)) * bit(p6, 8) * bit(j, 1) + (1 - bit2(p7, 9)) * bit(p7, 8) * bit(j, 0))
-		&& (0 /*bf*/ == (1 - bit2(p1, 11)) * bit(p1, 10) * bit(j, 6) + (1 - bit2(p2, 11)) * bit(p2, 10) * bit(j, 5) + (1 - bit2(p3, 11)) * bit(p3, 10) * bit(j, 4) + (1 - bit2(p4, 11)) * bit(p4, 10) * bit(j, 3) + (1 - bit2(p5, 11)) * bit(p5, 10) * bit(j, 2) + (1 - bit2(p6, 11)) * bit(p6, 10) * bit(j, 1) + (1 - bit2(p7, 11)) * bit(p7, 10) * bit(j, 0))
-		&& (0 /*bg*/ == (1 - bit2(p1, 13)) * bit(p1, 12) * bit(j, 6) + (1 - bit2(p2, 13)) * bit(p2, 12) * bit(j, 5) + (1 - bit2(p3, 13)) * bit(p3, 12) * bit(j, 4) + (1 - bit2(p4, 13)) * bit(p4, 12) * bit(j, 3) + (1 - bit2(p5, 13)) * bit(p5, 12) * bit(j, 2) + (1 - bit2(p6, 13)) * bit(p6, 12) * bit(j, 1) + (1 - bit2(p7, 13)) * bit(p7, 12) * bit(j, 0))
-		&& (0 /*bh*/ == (1 - bit2(p1, 15)) * bit(p1, 14) * bit(j, 6) + (1 - bit2(p2, 15)) * bit(p2, 14) * bit(j, 5) + (1 - bit2(p3, 15)) * bit(p3, 14) * bit(j, 4) + (1 - bit2(p4, 15)) * bit(p4, 14) * bit(j, 3) + (1 - bit2(p5, 15)) * bit(p5, 14) * bit(j, 2) + (1 - bit2(p6, 15)) * bit(p6, 14) * bit(j, 1) + (1 - bit2(p7, 15)) * bit(p7, 14) * bit(j, 0))
-		&& (0 /*ce*/ == (1 - bit2(p1, 17)) * bit(p1, 16) * bit(j, 6) + (1 - bit2(p2, 17)) * bit(p2, 16) * bit(j, 5) + (1 - bit2(p3, 17)) * bit(p3, 16) * bit(j, 4) + (1 - bit2(p4, 17)) * bit(p4, 16) * bit(j, 3) + (1 - bit2(p5, 17)) * bit(p5, 16) * bit(j, 2) + (1 - bit2(p6, 17)) * bit(p6, 16) * bit(j, 1) + (1 - bit2(p7, 17)) * bit(p7, 16) * bit(j, 0))
-		&& (1 /*cf*/ == (1 - bit2(p1, 19)) * bit(p1, 18) * bit(j, 6) + (1 - bit2(p2, 19)) * bit(p2, 18) * bit(j, 5) + (1 - bit2(p3, 19)) * bit(p3, 18) * bit(j, 4) + (1 - bit2(p4, 19)) * bit(p4, 18) * bit(j, 3) + (1 - bit2(p5, 19)) * bit(p5, 18) * bit(j, 2) + (1 - bit2(p6, 19)) * bit(p6, 18) * bit(j, 1) + (1 - bit2(p7, 19)) * bit(p7, 18) * bit(j, 0))
-		&& (0 /*cg*/ == (1 - bit2(p1, 21)) * bit(p1, 20) * bit(j, 6) + (1 - bit2(p2, 21)) * bit(p2, 20) * bit(j, 5) + (1 - bit2(p3, 21)) * bit(p3, 20) * bit(j, 4) + (1 - bit2(p4, 21)) * bit(p4, 20) * bit(j, 3) + (1 - bit2(p5, 21)) * bit(p5, 20) * bit(j, 2) + (1 - bit2(p6, 21)) * bit(p6, 20) * bit(j, 1) + (1 - bit2(p7, 21)) * bit(p7, 20) * bit(j, 0))
-		&& (0 /*ch*/ == (1 - bit2(p1, 23)) * bit(p1, 22) * bit(j, 6) + (1 - bit2(p2, 23)) * bit(p2, 22) * bit(j, 5) + (1 - bit2(p3, 23)) * bit(p3, 22) * bit(j, 4) + (1 - bit2(p4, 23)) * bit(p4, 22) * bit(j, 3) + (1 - bit2(p5, 23)) * bit(p5, 22) * bit(j, 2) + (1 - bit2(p6, 23)) * bit(p6, 22) * bit(j, 1) + (1 - bit2(p7, 23)) * bit(p7, 22) * bit(j, 0))
-		&& (0 /*de*/ == (1 - bit2(p1, 25)) * bit(p1, 24) * bit(j, 6) + (1 - bit2(p2, 25)) * bit(p2, 24) * bit(j, 5) + (1 - bit2(p3, 25)) * bit(p3, 24) * bit(j, 4) + (1 - bit2(p4, 25)) * bit(p4, 24) * bit(j, 3) + (1 - bit2(p5, 25)) * bit(p5, 24) * bit(j, 2) + (1 - bit2(p6, 25)) * bit(p6, 24) * bit(j, 1) + (1 - bit2(p7, 25)) * bit(p7, 24) * bit(j, 0))
-		&& (0 /*df*/ == (1 - bit2(p1, 27)) * bit(p1, 26) * bit(j, 6) + (1 - bit2(p2, 27)) * bit(p2, 26) * bit(j, 5) + (1 - bit2(p3, 27)) * bit(p3, 26) * bit(j, 4) + (1 - bit2(p4, 27)) * bit(p4, 26) * bit(j, 3) + (1 - bit2(p5, 27)) * bit(p5, 26) * bit(j, 2) + (1 - bit2(p6, 27)) * bit(p6, 26) * bit(j, 1) + (1 - bit2(p7, 27)) * bit(p7, 26) * bit(j, 0))
-		&& (0 /*dg*/ == (1 - bit2(p1, 29)) * bit(p1, 28) * bit(j, 6) + (1 - bit2(p2, 29)) * bit(p2, 28) * bit(j, 5) + (1 - bit2(p3, 29)) * bit(p3, 28) * bit(j, 4) + (1 - bit2(p4, 29)) * bit(p4, 28) * bit(j, 3) + (1 - bit2(p5, 29)) * bit(p5, 28) * bit(j, 2) + (1 - bit2(p6, 29)) * bit(p6, 28) * bit(j, 1) + (1 - bit2(p7, 29)) * bit(p7, 28) * bit(j, 0))
-		&& (1 /*dh*/ == (1 - bit2(p1, 31)) * bit(p1, 30) * bit(j, 6) + (1 - bit2(p2, 31)) * bit(p2, 30) * bit(j, 5) + (1 - bit2(p3, 31)) * bit(p3, 30) * bit(j, 4) + (1 - bit2(p4, 31)) * bit(p4, 30) * bit(j, 3) + (1 - bit2(p5, 31)) * bit(p5, 30) * bit(j, 2) + (1 - bit2(p6, 31)) * bit(p6, 30) * bit(j, 1) + (1 - bit2(p7, 31)) * bit(p7, 30) * bit(j, 0)))
-	{
-		goto sln;
-	}
-	return;
+	c2: // validate c2
+		for (j6 = -1; j6 <= 1; j6++)
+		for (j5 = -1; j5 <= 1; j5++)
+		for (j4 = -1; j4 <= 1; j4++)
+		for (j3 = -1; j3 <= 1; j3++)
+		for (j2 = -1; j2 <= 1; j2++)
+		for (j1 = -1; j1 <= 1; j1++)
+		for (j0 = -1; j0 <= 1; j0++) {
+			if ((0 /*ae*/ == msk(p1, 0, j6) + msk(p2, 0, j5) + msk(p3, 0, j4) + msk(p4, 0, j3) + msk(p5, 0, j2) + msk(p6, 0, j1) + msk(p7, 0, j0))
+				&& (1 /*af*/ == msk(p1, 2, j6) + msk(p2, 2, j5) + msk(p3, 2, j4) + msk(p4, 2, j3) + msk(p5, 2, j2) + msk(p6, 2, j1) + msk(p7, 2, j0))
+				&& (0 /*ag*/ == msk(p1, 4, j6) + msk(p2, 4, j5) + msk(p3, 4, j4) + msk(p4, 4, j3) + msk(p5, 4, j2) + msk(p6, 4, j1) + msk(p7, 4, j0))
+				&& (0 /*ah*/ == msk(p1, 6, j6) + msk(p2, 6, j5) + msk(p3, 6, j4) + msk(p4, 6, j3) + msk(p5, 6, j2) + msk(p6, 6, j1) + msk(p7, 6, j0))
+				&& (0 /*be*/ == msk(p1, 8, j6) + msk(p2, 8, j5) + msk(p3, 8, j4) + msk(p4, 8, j3) + msk(p5, 8, j2) + msk(p6, 8, j1) + msk(p7, 8, j0))
+				&& (0 /*bf*/ == msk(p1, 10, j6) + msk(p2, 10, j5) + msk(p3, 10, j4) + msk(p4, 10, j3) + msk(p5, 10, j2) + msk(p6, 10, j1) + msk(p7, 10, j0))
+				&& (0 /*bg*/ == msk(p1, 12, j6) + msk(p2, 12, j5) + msk(p3, 12, j4) + msk(p4, 12, j3) + msk(p5, 12, j2) + msk(p6, 12, j1) + msk(p7, 12, j0))
+				&& (1 /*bh*/ == msk(p1, 14, j6) + msk(p2, 14, j5) + msk(p3, 14, j4) + msk(p4, 14, j3) + msk(p5, 14, j2) + msk(p6, 14, j1) + msk(p7, 14, j0))
+				&& (0 /*ce*/ == msk(p1, 16, j6) + msk(p2, 16, j5) + msk(p3, 16, j4) + msk(p4, 16, j3) + msk(p5, 16, j2) + msk(p6, 16, j1) + msk(p7, 16, j0))
+				&& (0 /*cf*/ == msk(p1, 18, j6) + msk(p2, 18, j5) + msk(p3, 18, j4) + msk(p4, 18, j3) + msk(p5, 18, j2) + msk(p6, 18, j1) + msk(p7, 18, j0))
+				&& (0 /*cg*/ == msk(p1, 20, j6) + msk(p2, 20, j5) + msk(p3, 20, j4) + msk(p4, 20, j3) + msk(p5, 20, j2) + msk(p6, 20, j1) + msk(p7, 20, j0))
+				&& (0 /*ch*/ == msk(p1, 22, j6) + msk(p2, 22, j5) + msk(p3, 22, j4) + msk(p4, 22, j3) + msk(p5, 22, j2) + msk(p6, 22, j1) + msk(p7, 22, j0))
+				&& (0 /*de*/ == msk(p1, 24, j6) + msk(p2, 24, j5) + msk(p3, 24, j4) + msk(p4, 24, j3) + msk(p5, 24, j2) + msk(p6, 24, j1) + msk(p7, 24, j0))
+				&& (0 /*df*/ == msk(p1, 26, j6) + msk(p2, 26, j5) + msk(p3, 26, j4) + msk(p4, 26, j3) + msk(p5, 26, j2) + msk(p6, 26, j1) + msk(p7, 26, j0))
+				&& (0 /*dg*/ == msk(p1, 28, j6) + msk(p2, 28, j5) + msk(p3, 28, j4) + msk(p4, 28, j3) + msk(p5, 28, j2) + msk(p6, 28, j1) + msk(p7, 28, j0))
+				&& (0 /*dh*/ == msk(p1, 30, j6) + msk(p2, 30, j5) + msk(p3, 30, j4) + msk(p4, 30, j3) + msk(p5, 30, j2) + msk(p6, 30, j1) + msk(p7, 30, j0)))
+			{
+				goto c3;
+			}
+		}
+		return;// continue;
 
-	sln: // solution found
-	*res = true;
+	c3: // validate c3
+		for (j6 = -1; j6 <= 1; j6++)
+		for (j5 = -1; j5 <= 1; j5++)
+		for (j4 = -1; j4 <= 1; j4++)
+		for (j3 = -1; j3 <= 1; j3++)
+		for (j2 = -1; j2 <= 1; j2++)
+		for (j1 = -1; j1 <= 1; j1++)
+		for (j0 = -1; j0 <= 1; j0++) {
+			if ((0 /*ae*/ == msk(p1, 0, j6) + msk(p2, 0, j5) + msk(p3, 0, j4) + msk(p4, 0, j3) + msk(p5, 0, j2) + msk(p6, 0, j1) + msk(p7, 0, j0))
+				&& (0 /*af*/ == msk(p1, 2, j6) + msk(p2, 2, j5) + msk(p3, 2, j4) + msk(p4, 2, j3) + msk(p5, 2, j2) + msk(p6, 2, j1) + msk(p7, 2, j0))
+				&& (0 /*ag*/ == msk(p1, 4, j6) + msk(p2, 4, j5) + msk(p3, 4, j4) + msk(p4, 4, j3) + msk(p5, 4, j2) + msk(p6, 4, j1) + msk(p7, 4, j0))
+				&& (0 /*ah*/ == msk(p1, 6, j6) + msk(p2, 6, j5) + msk(p3, 6, j4) + msk(p4, 6, j3) + msk(p5, 6, j2) + msk(p6, 6, j1) + msk(p7, 6, j0))
+				&& (0 /*be*/ == msk(p1, 8, j6) + msk(p2, 8, j5) + msk(p3, 8, j4) + msk(p4, 8, j3) + msk(p5, 8, j2) + msk(p6, 8, j1) + msk(p7, 8, j0))
+				&& (0 /*bf*/ == msk(p1, 10, j6) + msk(p2, 10, j5) + msk(p3, 10, j4) + msk(p4, 10, j3) + msk(p5, 10, j2) + msk(p6, 10, j1) + msk(p7, 10, j0))
+				&& (0 /*bg*/ == msk(p1, 12, j6) + msk(p2, 12, j5) + msk(p3, 12, j4) + msk(p4, 12, j3) + msk(p5, 12, j2) + msk(p6, 12, j1) + msk(p7, 12, j0))
+				&& (0 /*bh*/ == msk(p1, 14, j6) + msk(p2, 14, j5) + msk(p3, 14, j4) + msk(p4, 14, j3) + msk(p5, 14, j2) + msk(p6, 14, j1) + msk(p7, 14, j0))
+				&& (1 /*ce*/ == msk(p1, 16, j6) + msk(p2, 16, j5) + msk(p3, 16, j4) + msk(p4, 16, j3) + msk(p5, 16, j2) + msk(p6, 16, j1) + msk(p7, 16, j0))
+				&& (0 /*cf*/ == msk(p1, 18, j6) + msk(p2, 18, j5) + msk(p3, 18, j4) + msk(p4, 18, j3) + msk(p5, 18, j2) + msk(p6, 18, j1) + msk(p7, 18, j0))
+				&& (0 /*cg*/ == msk(p1, 20, j6) + msk(p2, 20, j5) + msk(p3, 20, j4) + msk(p4, 20, j3) + msk(p5, 20, j2) + msk(p6, 20, j1) + msk(p7, 20, j0))
+				&& (0 /*ch*/ == msk(p1, 22, j6) + msk(p2, 22, j5) + msk(p3, 22, j4) + msk(p4, 22, j3) + msk(p5, 22, j2) + msk(p6, 22, j1) + msk(p7, 22, j0))
+				&& (0 /*de*/ == msk(p1, 24, j6) + msk(p2, 24, j5) + msk(p3, 24, j4) + msk(p4, 24, j3) + msk(p5, 24, j2) + msk(p6, 24, j1) + msk(p7, 24, j0))
+				&& (0 /*df*/ == msk(p1, 26, j6) + msk(p2, 26, j5) + msk(p3, 26, j4) + msk(p4, 26, j3) + msk(p5, 26, j2) + msk(p6, 26, j1) + msk(p7, 26, j0))
+				&& (1 /*dg*/ == msk(p1, 28, j6) + msk(p2, 28, j5) + msk(p3, 28, j4) + msk(p4, 28, j3) + msk(p5, 28, j2) + msk(p6, 28, j1) + msk(p7, 28, j0))
+				&& (0 /*dh*/ == msk(p1, 30, j6) + msk(p2, 30, j5) + msk(p3, 30, j4) + msk(p4, 30, j3) + msk(p5, 30, j2) + msk(p6, 30, j1) + msk(p7, 30, j0)))
+			{
+				goto c4;
+			}
+		}
+		return;// continue;
+
+	c4: // validate c4
+		for (j6 = -1; j6 <= 1; j6++)
+		for (j5 = -1; j5 <= 1; j5++)
+		for (j4 = -1; j4 <= 1; j4++)
+		for (j3 = -1; j3 <= 1; j3++)
+		for (j2 = -1; j2 <= 1; j2++)
+		for (j1 = -1; j1 <= 1; j1++)
+		for (j0 = -1; j0 <= 1; j0++) {
+			if ((0 /*ae*/ == msk(p1, 0, j6) + msk(p2, 0, j5) + msk(p3, 0, j4) + msk(p4, 0, j3) + msk(p5, 0, j2) + msk(p6, 0, j1) + msk(p7, 0, j0))
+				&& (0 /*af*/ == msk(p1, 2, j6) + msk(p2, 2, j5) + msk(p3, 2, j4) + msk(p4, 2, j3) + msk(p5, 2, j2) + msk(p6, 2, j1) + msk(p7, 2, j0))
+				&& (0 /*ag*/ == msk(p1, 4, j6) + msk(p2, 4, j5) + msk(p3, 4, j4) + msk(p4, 4, j3) + msk(p5, 4, j2) + msk(p6, 4, j1) + msk(p7, 4, j0))
+				&& (0 /*ah*/ == msk(p1, 6, j6) + msk(p2, 6, j5) + msk(p3, 6, j4) + msk(p4, 6, j3) + msk(p5, 6, j2) + msk(p6, 6, j1) + msk(p7, 6, j0))
+				&& (0 /*be*/ == msk(p1, 8, j6) + msk(p2, 8, j5) + msk(p3, 8, j4) + msk(p4, 8, j3) + msk(p5, 8, j2) + msk(p6, 8, j1) + msk(p7, 8, j0))
+				&& (0 /*bf*/ == msk(p1, 10, j6) + msk(p2, 10, j5) + msk(p3, 10, j4) + msk(p4, 10, j3) + msk(p5, 10, j2) + msk(p6, 10, j1) + msk(p7, 10, j0))
+				&& (0 /*bg*/ == msk(p1, 12, j6) + msk(p2, 12, j5) + msk(p3, 12, j4) + msk(p4, 12, j3) + msk(p5, 12, j2) + msk(p6, 12, j1) + msk(p7, 12, j0))
+				&& (0 /*bh*/ == msk(p1, 14, j6) + msk(p2, 14, j5) + msk(p3, 14, j4) + msk(p4, 14, j3) + msk(p5, 14, j2) + msk(p6, 14, j1) + msk(p7, 14, j0))
+				&& (0 /*ce*/ == msk(p1, 16, j6) + msk(p2, 16, j5) + msk(p3, 16, j4) + msk(p4, 16, j3) + msk(p5, 16, j2) + msk(p6, 16, j1) + msk(p7, 16, j0))
+				&& (1 /*cf*/ == msk(p1, 18, j6) + msk(p2, 18, j5) + msk(p3, 18, j4) + msk(p4, 18, j3) + msk(p5, 18, j2) + msk(p6, 18, j1) + msk(p7, 18, j0))
+				&& (0 /*cg*/ == msk(p1, 20, j6) + msk(p2, 20, j5) + msk(p3, 20, j4) + msk(p4, 20, j3) + msk(p5, 20, j2) + msk(p6, 20, j1) + msk(p7, 20, j0))
+				&& (0 /*ch*/ == msk(p1, 22, j6) + msk(p2, 22, j5) + msk(p3, 22, j4) + msk(p4, 22, j3) + msk(p5, 22, j2) + msk(p6, 22, j1) + msk(p7, 22, j0))
+				&& (0 /*de*/ == msk(p1, 24, j6) + msk(p2, 24, j5) + msk(p3, 24, j4) + msk(p4, 24, j3) + msk(p5, 24, j2) + msk(p6, 24, j1) + msk(p7, 24, j0))
+				&& (0 /*df*/ == msk(p1, 26, j6) + msk(p2, 26, j5) + msk(p3, 26, j4) + msk(p4, 26, j3) + msk(p5, 26, j2) + msk(p6, 26, j1) + msk(p7, 26, j0))
+				&& (0 /*dg*/ == msk(p1, 28, j6) + msk(p2, 28, j5) + msk(p3, 28, j4) + msk(p4, 28, j3) + msk(p5, 28, j2) + msk(p6, 28, j1) + msk(p7, 28, j0))
+				&& (1 /*dh*/ == msk(p1, 30, j6) + msk(p2, 30, j5) + msk(p3, 30, j4) + msk(p4, 30, j3) + msk(p5, 30, j2) + msk(p6, 30, j1) + msk(p7, 30, j0)))
+			{
+				*res = true;
+				return;
+			}
+		}
+	}
+}
+
+__global__ void g_calculate(unsigned int* d_p, uint3* d_t, uint3 start, bool* res) {
+
+	short c[7];
+	unsigned int id = blockIdx.x * blockDim.x + threadIdx.x;
+
+	getcandidate(d_t, uint3_add(start, make_uint3(id, 0, 0)), c);
+	calculate(c, d_p, res);
+}
+
+__global__ void g_getcandidateindex(uint3* d_t, short* res, uint3* n)
+{
+	getcandidateindex(d_t, res, n);
+}
+
+__global__ void g_getcandidate(uint3* d_t, uint3 n, short* res)
+{
+	getcandidate(d_t, n, res);
 }
 
 int main()
 {
 	cudaError_t cudaStatus;
 	unsigned int* dev_p = 0;
-	uint3** dev_t = 0;
+	uint3* dev_t = 0;
 	bool* dev_r = 0;
 	bool r = false;
 
@@ -130,19 +179,39 @@ int main()
 		goto CLEANUP;
 	}
 
-	printf("START:\n");
-	uint3 n = make_uint3(0, 0, 0);
+	info("START:\n");
 
-	info("n = (%d, %d, %d): ", n.x, n.y, n.z);
-	calculate <<<1, 1>>>(dev_p, dev_t, n, dev_r);
+	uint3 max = make_uint3(0x1a451e22, 0x4823143b, 0x25);
+	uint3 inc = make_uint3(GRID_SIZE * BLOCK_SIZE * NUMBER_OF_CANDIDATES, 0, 0);
+	uint3 start = make_uint3(0, 0, 0);
 
-	cudaStatus = cudaMemcpy(&r, dev_r, sizeof(bool), cudaMemcpyDeviceToHost);
-	if (cudaStatus != cudaSuccess) {
-		fprintf(stderr, "cudaMemcpy failed!");
-		goto CLEANUP;
+	uint3 strassen = make_uint3(3261699961, 1784383582, 4); // { 57, 160, 350, 1050, 1311, 1771, 2961 }
+
+	for (uint3 n = start; uint3_cmp(n, max) < 0; n = add(n, inc)) {
+
+		g_calculate << <GRID_SIZE, BLOCK_SIZE>> >(dev_p, dev_t, n, dev_r);
+
+		cudaStatus = cudaGetLastError();
+		if (cudaStatus != cudaSuccess) {
+			info("(%u, %u, %u): cuda execution failed!\n", n.x, n.y, n.z);
+			goto CLEANUP;
+		}
+
+		cudaStatus = cudaDeviceSynchronize();
+		if (cudaStatus != cudaSuccess) {
+			info("(%u, %u, %u): cudaDeviceSynchronize returned error code %d after launching addKernel!\n", n.x, n.y, n.z, cudaStatus);
+			goto CLEANUP;
+		}
+
+		cudaStatus = cudaMemcpy(&r, dev_r, sizeof(bool), cudaMemcpyDeviceToHost);
+		if (cudaStatus != cudaSuccess) {
+			info("(%u, %u, %u): cudaMemcpy failed!\n", n.x, n.y, n.z);
+			goto CLEANUP;
+		}
+
+		info("(%u, %u, %u): %s\n", n.x, n.y, n.z, r ? "TRUE" : "FALSE");
+		if (r) break;
 	}
-
-	printf("%s\n", r ? "TRUE" : "FALSE");
 
 CLEANUP:
 	cudaFree(dev_p);

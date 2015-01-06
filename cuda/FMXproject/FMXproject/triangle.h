@@ -20,19 +20,38 @@ uint3 t[T_SIZE][T_V_SIZE] = {
 
 };
 
-__device__ short* getcandidate(uint3** d_t, uint3 n) {
-	short* res = new short[T_SIZE];
+__device__ void getcandidate(uint3* d_t, uint3 n, short* res) {
+
 	n = uint3_add(n, make_uint3(1, 0, 0)); // one based
 
 	short k = 0;
 	for (char i = 0; i < T_SIZE; i++) {
-		uint3* row = d_t[T_SIZE - i - 1];
+		uint3* row = &d_t[(T_SIZE - i - 1) * T_V_SIZE];
 		uint3 o = row[k];
-		k = bisect_left(row, T_V_SIZE, uint3_add(n, o)) - 1;
+		n = uint3_add(n, o);
+		k = bisect_left(row, T_V_SIZE, n) - 1;
 		res[i] = k;
 		n = uint3_sub(n, row[k]); // n > d_t[r][k]
-		n = uint3_add(n, o);
 	}
-	return res;
+}
+
+__device__ void getcandidateindex(uint3* d_t, short* res, uint3* n) {
+	short k = 0;
+	*n = make_uint3(0, 0, 0);
+	for (char i = 0; i < T_SIZE; i++) {
+		uint3* row = &d_t[(T_SIZE - i - 1) * T_V_SIZE];
+		uint3 o = row[k];
+		k = res[i];
+		*n = uint3_add(*n, row[k]);
+		*n = uint3_sub(*n, o);
+	}
+}
+
+__host__ __device__ void nextcandidate(short* res) {
+	for (char i = T_SIZE-1; i >= 0; i--) {
+		res[i]++;
+		if (res[i] < P_SIZE) return;
+		res[i] = 0;
+	}
 }
 #endif
